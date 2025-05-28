@@ -72,7 +72,8 @@ Visual references are located in:
 
 ## 📸 Preview
 
-![Exploded View](docs/images/exploded-view.png)
+<img src="docs/images/robot-1.jpeg" alt="Exploded View" width="400"/>
+<img src="docs/images/robot-2.jpeg" alt="Exploded View" width="400"/>
 
 ---
 
