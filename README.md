@@ -7,9 +7,8 @@ An educational crawling robot platform designed for AI students. This project pr
 
 ## 📦 What’s Inside
 
-- `template.ino`: A logic template students can customize to control the robot.
+- `template.ino`: This is the starting point for your AI logic. Modify it to define how the robot should behave.
 - 3D models in Rhino and export formats for viewing or printing.
-- Firmware for the robot's microcontroller (e.g., Arduino or ESP).
 - Guides for assembly, deployment, and usage.
 - Diagrams and images for wiring and construction help.
 
@@ -33,9 +32,9 @@ templates/template.ino
 
 Use it to define how the robot should behave. You’ll write AI logic here.
 
-### 3. Upload Logic and Firmware
+### 3. Upload Logic
 
-Follow the steps in the [User Guide](docs/user-guide.md) to upload your logic and firmware to the robot.
+Follow the steps in the [User Guide](docs/user-guide.md) to upload your logic to the robot.
 
 ---
 
@@ -44,15 +43,14 @@ Follow the steps in the [User Guide](docs/user-guide.md) to upload your logic an
 | Folder | Contents |
 |--------|----------|
 | `templates/` | Starter `.ino` logic file to customize |
-| `models/` | 3D robot designs in Rhino (`.3dm`) and export formats (`.stl`, `.obj`) |
+| `designs/` | 3D robot designs in Rhino (`.3dm`) and export formats (`.stl`, `.obj`) |
 | `docs/` | Written guides, wiring diagrams, and usage instructions |
-| `firmware/` | Microcontroller code (Arduino/ESP32/etc.) |
 
 ---
 
 ## 🖨️ 3D Model Exports
 
-In the `models/` directory:
+In the `designs/` directory:
 - `robot-design.3dm` — original Rhino model
 - `exports/robot.stl`, `robot.obj` — printable and viewable 3D exports
 - `exploded-view.png` — visual reference for assembly
@@ -63,8 +61,8 @@ In the `models/` directory:
 
 Start with:
 
-- [`docs/user-guide.md`](docs/user-guide.md): Robot setup, deployment, and control
 - [`docs/installation.md`](docs/installation.md): Software installation and environment setup
+- [`docs/user-guide.md`](docs/user-guide.md): Robot setup, deployment, and control
 
 Visual references are located in:
 
