@@ -31,8 +31,8 @@ This guide will help you set up the required software and configure your Arduino
 
 
 
-   <img src="images/arduino-screenshot-1.png" alt="Arduino IDE Main Window" width="400"/>
-    <img src="images/arduino-screenshot-2.png" alt="Boards Manager Window" width="400"/>
+   <img src="images/arduino-screenshot-1.png" alt="Arduino IDE Main Window" height="300"/>
+    <img src="images/arduino-screenshot-2.png" alt="Boards Manager Window" height="300"/>
 
 ## 3. Add the Template Logic
 1. Clone the repository to your local machine:
@@ -48,7 +48,7 @@ git clone https://github.com/amirali-lll/crawling-bot.git
 1. Select the Library Manager from the Arduino IDE (It is located at the left side of the IDE).
 2. Search for and install any libraries required by your project (Each library is mentioned in the `template.ino`)
 
-<img src="images/arduino-screenshot-3.png" alt="Library Manager window" width="400"/>
+<img src="images/arduino-screenshot-3.png" alt="Library Manager window" height="300"/>
 
 
 ## 5. Upload the Code ⬆️
@@ -57,9 +57,9 @@ git clone https://github.com/amirali-lll/crawling-bot.git
 3. Go to **Tools > Port** and select the port corresponding to your ESP board.
 4. Click the **Upload** button (right arrow icon) to compile and upload the code to your ESP board.
 
-   <img src="images/arduino-screenshot-4.png" alt="Upload button in Arduino IDE" width="400"/>
+   <img src="images/arduino-screenshot-4.jpeg" alt="Upload button in Arduino IDE" height="300"/>
 
 
 ## 6. Verify Configuration ✅ (Optional)
 - Open the **Serial Monitor** (Tools > Serial Monitor) to check output and ensure the ESP board is running as expected.
-<img src="images/arduino-screenshot-5.png" alt="Serial Monitor output" width="800"/>
+<img src="images/arduino-screenshot-5.png" alt="Serial Monitor output" height="300"/>
