@@ -1,5 +1,5 @@
 
-# AI Crawling Bot 🐞
+# AI Crawling Bot 🐛
 
 An educational crawling robot platform designed for AI students. This project provides everything needed to design, build, and program an autonomous crawling robot — including 3D models, firmware, logic templates, and full documentation.
 
@@ -59,12 +59,21 @@ In the `designs/` directory:
 
 ## 📚 Documentation
 
-Start with:
+### Video Guide
+For a detailed overview of the robot and its components, watch the video:
+
+[▶️ AI Crawling Bot Overview (Google Drive)](https://drive.google.com/file/d/1TIa0ktaaaPdPyBMpJnHhDxLsFk6jlDfr/view?usp=share_link)
+
+[🚀 AI Crawling Bot Overview (Telegram)](https://t.me/ai4032_iust/126)
+
+
+### Written Guides
 
 - [`docs/installation.md`](docs/installation.md): Software installation and environment setup
-- [`docs/user-guide.md`](docs/user-guide.md): Robot setup, deployment, and control
+- [`docs/robot-overview.md`](docs/robot-overview.md): Overview of the robot's components and assembly
 
-Visual references are located in:
+
+### Images
 
 - `docs/images/`
 
