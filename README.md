@@ -19,7 +19,7 @@ An educational crawling robot platform designed for AI students. This project pr
 ### 1. Clone the Repository
 
 ```bash
-git clone https://github.com/YOUR_USERNAME/ai-crawling-bot.git
+git clone https://github.com/amirali-lll/crawling-bot.git
 ```
 
 ### 2. Open and Edit the Logic Template
