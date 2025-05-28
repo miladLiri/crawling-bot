@@ -34,7 +34,7 @@ Use it to define how the robot should behave. You’ll write AI logic here.
 
 ### 3. Upload Logic
 
-Follow the steps in the [User Guide](docs/installation.md) to upload your logic to the robot.
+Follow the steps in the [Installation](docs/installation.md) to upload your logic to the robot.
 
 ---
 
