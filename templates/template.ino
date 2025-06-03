@@ -52,33 +52,11 @@ void healthCheck()
         lcd.print(distance);
         lcd.print(" cm");
     }
-    delay(1500);
+    delay(500);
 
-    // Start servoup at 180 and decrease to 0 for each servodown position
-    int down_positions[] = {0, 45, 95};
-    int up_positions[] = {180, 135, 95, 45, 0};
-
-    for (int i = 0; i < 3; i++) {
-        servodown.write(down_positions[i]);
-        lcd.clear();
-        lcd.print("Down: ");
-        lcd.print(down_positions[i]);
-        lcd.print(" deg");
-        delay(700);
-
-        for (int j = 0; j < 5; j++) {
-            servoup.write(up_positions[j]);
-            lcd.clear();
-            lcd.print("Down:");
-            lcd.print(down_positions[i]);
-            lcd.setCursor(0, 1);
-            lcd.print("Up:");
-            lcd.print(up_positions[j]);
-            lcd.print(" deg");
-            delay(700);
-        }
-    }
-
+    servodown.write(90);
+    servoup.write(90);
+    delay(1000);
     // 3. Move servos back to initial position
     servodown.write(0);
     servoup.write(180);
@@ -86,12 +64,31 @@ void healthCheck()
     lcd.print("Servos Reset");
     delay(1000);
 
-
     // 4. Print completion message
     lcd.clear();
     lcd.print("Health Check Done");
     delay(1500);
     lcd.clear();
+}
+
+void moveServoSmooth(Servo &servo, int from, int to, int stepDelay = 10)
+{
+    if (from < to)
+    {
+        for (int a = from; a <= to; a += 2)
+        {
+            servo.write(a);
+            delay(stepDelay);
+        }
+    }
+    else
+    {
+        for (int a = from; a >= to; a -= 2)
+        {
+            servo.write(a);
+            delay(stepDelay);
+        }
+    }
 }
 
 void doTraining()
