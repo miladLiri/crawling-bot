@@ -1,10 +1,12 @@
 #include <ESP32Servo.h> // ESP32Servo by Kevin Harrington, John K. Bennet
 #include <Wire.h>
 #include <LiquidCrystal_I2C.h> // Adafruit LiquidCrystal by Adafruit
-#include <NewPing.h>
+#include <NewPing.h>           // NewPing by Tim Eckel
 #include <WiFi.h>
 #include <ArduinoOTA.h>
 #include <EEPROM.h>
+#include <ESPmDNS.h>
+// All other libraries are included in ESP32 Dev Module by Espressif Systems
 
 // EEPROM settings
 #define EEPROM_SIZE 1    // 1 byte to store robot number (1-8)
@@ -32,6 +34,9 @@ NewPing sonar(triggerPin, echoPin, MAX_DISTANCE); // NewPing instance
 char ssid[32];
 char ota_hostname[32];
 uint8_t robot_number = 0;
+
+// FreeRTOS task handle for OTA
+TaskHandle_t otaTaskHandle = NULL;
 
 void saveRobotNumber(uint8_t number)
 {
@@ -120,6 +125,16 @@ void setup_ota()
     Serial.println(ota_hostname);
 }
 
+// OTA task to run asynchronously
+void otaTask(void *parameter)
+{
+    for (;;)
+    {
+        ArduinoOTA.handle();                 // Handle OTA updates
+        vTaskDelay(10 / portTICK_PERIOD_MS); // Yield for 10ms
+    }
+}
+
 float getDistance()
 {
     float distance = sonar.ping_cm(); // Get distance in cm
@@ -206,21 +221,30 @@ void doLearnedBehavior()
 void setup()
 {
     Serial.begin(9600);
+    delay(1000); // Give Serial Monitor time to connect
 
     // Initialize EEPROM
     EEPROM.begin(EEPROM_SIZE);
 
-    
-    // Read robot number from EEPROM
+    // Read or set robot number
     robot_number = readRobotNumber();
-
-    // Set AP/OTA names
     snprintf(ssid, sizeof(ssid), "%s%d", base_ssid, robot_number);
     snprintf(ota_hostname, sizeof(ota_hostname), "%s%d", base_ota_hostname, robot_number);
 
     // Initialize AP and OTA
     setup_ap();
     setup_ota();
+
+    // Start OTA task
+    xTaskCreatePinnedToCore(
+        otaTask,        // Task function
+        "OTATask",      // Task name
+        4096,           // Stack size
+        NULL,           // Task parameters
+        1,              // Priority
+        &otaTaskHandle, // Task handle
+        1               // Run on core 1
+    );
 
     // Initialize LCD
     lcd.init();
@@ -249,12 +273,11 @@ void setup()
 
 void loop()
 {
-    ArduinoOTA.handle(); // Handle OTA updates
     lcd.clear();
     lcd.print("Robot ");
     lcd.print(robot_number);
     lcd.setCursor(0, 1);
     lcd.print("Main Loop");
-    delay(1000);
+    delay(1000); // Reduced delay to minimize blocking
     // TODO: Implement your main loop logic here
 }
