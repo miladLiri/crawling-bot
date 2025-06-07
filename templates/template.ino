@@ -1,13 +1,19 @@
-#include <ESP32Servo.h>         //ESP32Servo by Kevin Harrington, John K. Bennet
+#include <ESP32Servo.h> // ESP32Servo by Kevin Harrington, John K. Bennet
 #include <Wire.h>
 #include <LiquidCrystal_I2C.h> // Adafruit LiquidCrystal by Adafruit
-#include <NewPing.h>           // NewPing by Tim Eckel
+#include <NewPing.h>
 #include <WiFi.h>
 #include <ArduinoOTA.h>
+#include <EEPROM.h>
 
-// Wi-Fi credentials for Access Point
-const char *ssid = "ESP32-AP";
-const char *password = "12345678";
+// EEPROM settings
+#define EEPROM_SIZE 1    // 1 byte to store robot number (1-8)
+#define ROBOT_NUM_ADDR 0 // EEPROM address for robot number
+
+// Base names for AP and OTA
+const char *base_ssid = "ESP32-AP-";
+const char *base_ota_hostname = "ESP32-OTA-";
+const char *ap_password = "12345678"; // Common password for all APs
 
 // Pin definitions
 const int triggerPin = 5;
@@ -22,18 +28,64 @@ Servo servodown;
 Servo servoup;
 NewPing sonar(triggerPin, echoPin, MAX_DISTANCE); // NewPing instance
 
+// Global variables for dynamic AP and OTA names
+char ssid[32];
+char ota_hostname[32];
+uint8_t robot_number = 0;
+
+void saveRobotNumber(uint8_t number)
+{
+    EEPROM.write(ROBOT_NUM_ADDR, number);
+    EEPROM.commit();
+    Serial.print("Saved robot number: ");
+    Serial.println(number);
+}
+
+uint8_t readRobotNumber()
+{
+    uint8_t number = EEPROM.read(ROBOT_NUM_ADDR);
+    if (number < 1 || number > 8)
+    {
+        Serial.println("Invalid or uninitialized robot number. Please set number (1-8).");
+        lcd.clear();
+        lcd.print("Set Robot Num: 1-8");
+        while (!Serial.available())
+        {
+            delay(100); // Wait for Serial input
+        }
+        number = Serial.parseInt();
+        if (number >= 1 && number <= 8)
+        {
+            saveRobotNumber(number);
+            lcd.clear();
+            lcd.print("Robot Num Set: ");
+            lcd.print(number);
+            delay(2000);
+        }
+        else
+        {
+            Serial.println("Invalid input. Defaulting to robot number 1.");
+            number = 1;
+            saveRobotNumber(number);
+        }
+    }
+    return number;
+}
+
 void setup_ap()
 {
     WiFi.mode(WIFI_AP);
-    WiFi.softAP(ssid, password);
+    WiFi.softAP(ssid, ap_password);
     Serial.println("AP Started");
+    Serial.print("AP SSID: ");
+    Serial.println(ssid);
     Serial.print("IP Address: ");
     Serial.println(WiFi.softAPIP());
 }
 
 void setup_ota()
 {
-    ArduinoOTA.setHostname("ESP32-OTA");
+    ArduinoOTA.setHostname(ota_hostname);
     // ArduinoOTA.setPassword("admin"); // Optional: Set OTA password
     ArduinoOTA.onStart([]()
                        {
@@ -64,6 +116,8 @@ void setup_ota()
         else if (error == OTA_END_ERROR) Serial.println("End Failed"); });
     ArduinoOTA.begin();
     Serial.println("OTA Ready");
+    Serial.print("OTA Hostname: ");
+    Serial.println(ota_hostname);
 }
 
 float getDistance()
@@ -153,6 +207,17 @@ void setup()
 {
     Serial.begin(9600);
 
+    // Initialize EEPROM
+    EEPROM.begin(EEPROM_SIZE);
+
+    
+    // Read robot number from EEPROM
+    robot_number = readRobotNumber();
+
+    // Set AP/OTA names
+    snprintf(ssid, sizeof(ssid), "%s%d", base_ssid, robot_number);
+    snprintf(ota_hostname, sizeof(ota_hostname), "%s%d", base_ota_hostname, robot_number);
+
     // Initialize AP and OTA
     setup_ap();
     setup_ota();
@@ -161,7 +226,10 @@ void setup()
     lcd.init();
     lcd.backlight();
     lcd.clear();
-    lcd.print("RL Robot Setup");
+    lcd.print("RL Robot ");
+    lcd.print(robot_number);
+    lcd.setCursor(0, 1);
+    lcd.print("Setup");
     delay(1000);
 
     // Attach servos with min/max pulse widths
@@ -183,7 +251,10 @@ void loop()
 {
     ArduinoOTA.handle(); // Handle OTA updates
     lcd.clear();
-    lcd.print("Main Loop Running");
-    delay(10000);
+    lcd.print("Robot ");
+    lcd.print(robot_number);
+    lcd.setCursor(0, 1);
+    lcd.print("Main Loop");
+    delay(1000);
     // TODO: Implement your main loop logic here
 }
