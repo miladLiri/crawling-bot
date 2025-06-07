@@ -42,6 +42,7 @@ OTA (Over-the-Air) is essential for wireless code updates. **Do not remove or co
 
 ## 4. Upload Code Over OTA ⬆️
 1. Click the **Upload** button (right arrow icon) in the Arduino IDE.
+    - OTA Password: `admin`
 2. The IDE will compile your code and upload it wirelessly to the robot.
 3. Watch the progress in the IDE and on the robot's LCD (it will show OTA progress and status).
 
