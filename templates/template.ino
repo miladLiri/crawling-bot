@@ -1,8 +1,13 @@
-// Install the required libraries via the Library Manager in the Arduino IDE:
-#include <ESP32Servo.h>
+#include <ESP32Servo.h>         //ESP32Servo by Kevin Harrington, John K. Bennet
 #include <Wire.h>
-#include <LiquidCrystal_I2C.h>
-#include <NewPing.h>
+#include <LiquidCrystal_I2C.h> // Adafruit LiquidCrystal by Adafruit
+#include <NewPing.h>           // NewPing by Tim Eckel
+#include <WiFi.h>
+#include <ArduinoOTA.h>
+
+// Wi-Fi credentials for Access Point
+const char *ssid = "ESP32-AP";
+const char *password = "12345678";
 
 // Pin definitions
 const int triggerPin = 5;
@@ -17,6 +22,49 @@ Servo servodown;
 Servo servoup;
 NewPing sonar(triggerPin, echoPin, MAX_DISTANCE); // NewPing instance
 
+void setup_ap()
+{
+    WiFi.mode(WIFI_AP);
+    WiFi.softAP(ssid, password);
+    Serial.println("AP Started");
+    Serial.print("IP Address: ");
+    Serial.println(WiFi.softAPIP());
+}
+
+void setup_ota()
+{
+    ArduinoOTA.setHostname("ESP32-OTA");
+    // ArduinoOTA.setPassword("admin"); // Optional: Set OTA password
+    ArduinoOTA.onStart([]()
+                       {
+        Serial.println("OTA Start");
+        lcd.clear();
+        lcd.print("OTA Update Start"); });
+    ArduinoOTA.onEnd([]()
+                     {
+        Serial.println("\nOTA End");
+        lcd.clear();
+        lcd.print("OTA Update Done"); });
+    ArduinoOTA.onProgress([](unsigned int progress, unsigned int total)
+                          {
+        Serial.printf("Progress: %u%%\r", (progress / (total / 100)));
+        lcd.clear();
+        lcd.print("OTA Progress: ");
+        lcd.setCursor(0, 1);
+        lcd.print((progress / (total / 100)));
+        lcd.print("%"); });
+    ArduinoOTA.onError([](ota_error_t error)
+                       {
+        Serial.printf("Error[%u]: ", error);
+        lcd.clear();
+        lcd.print("OTA Error");
+        if (error == OTA_AUTH_ERROR) Serial.println("Auth Failed");
+        else if (error == OTA_CONNECT_ERROR) Serial.println("Connect Failed");
+        else if (error == OTA_RECEIVE_ERROR) Serial.println("Receive Failed");
+        else if (error == OTA_END_ERROR) Serial.println("End Failed"); });
+    ArduinoOTA.begin();
+    Serial.println("OTA Ready");
+}
 
 float getDistance()
 {
@@ -101,10 +149,13 @@ void doLearnedBehavior()
     // TODO: Add your learned behavior logic here
 }
 
-
 void setup()
 {
     Serial.begin(9600);
+
+    // Initialize AP and OTA
+    setup_ap();
+    setup_ota();
 
     // Initialize LCD
     lcd.init();
@@ -130,6 +181,7 @@ void setup()
 
 void loop()
 {
+    ArduinoOTA.handle(); // Handle OTA updates
     lcd.clear();
     lcd.print("Main Loop Running");
     delay(10000);
