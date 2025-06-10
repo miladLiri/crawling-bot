@@ -278,6 +278,7 @@ void loop()
     lcd.print(robot_number);
     lcd.setCursor(0, 1);
     lcd.print("Main Loop");
+    lcd.print("Clean Solution");
     delay(1000); // Reduced delay to minimize blocking
     // TODO: Implement your main loop logic here
 }
