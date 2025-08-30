@@ -1,28 +1,28 @@
 #include <ESP32Servo.h> // ESP32Servo by Kevin Harrington, John K. Bennet
 #include <Wire.h>
-#include <LiquidCrystal_I2C.h> // LiquidCrystal I2C by Frank de Brabander
+#include <LiquidCrystal_I2C.h> // Adafruit LiquidCrystal by Adafruit
 #include <NewPing.h>           // NewPing by Tim Eckel
 #include <WiFi.h>
 #include <ArduinoOTA.h>
 #include <EEPROM.h>
 #include <ESPmDNS.h>
+// All other libraries are included in ESP32 Dev Module by Espressif Systems
 
-// ==================== CONFIGURATION ====================
 // EEPROM settings
-#define EEPROM_SIZE 1    
-#define ROBOT_NUM_ADDR 0 
+#define EEPROM_SIZE 1    // 1 byte to store robot number (1-8)
+#define ROBOT_NUM_ADDR 0 // EEPROM address for robot number
 
-// Network configuration
+// Base names for AP and OTA
 const char *base_ssid = "ESP32-AP-";
 const char *base_ota_hostname = "ESP32-OTA-";
-const char *ap_password = "12345678";
+const char *ap_password = "12345678"; // Common password for all APs
 
 // Pin definitions
 const int triggerPin = 5;
 const int echoPin = 17;
-const int control_servo_down = 32;  // Servo 1 (base servo)
-const int control_servo_up = 33;    // Servo 2 (arm servo)
-#define MAX_DISTANCE 200 
+const int control_servo_down = 32;
+const int control_servo_up = 33;
+#define MAX_DISTANCE 200 // Maximum distance to check in cm
 
 // Q-Learning Parameters
 #define STATES 16        // 4 positions x 4 positions = 16 states
@@ -35,16 +35,18 @@ const int control_servo_up = 33;    // Servo 2 (arm servo)
 const int SERVO1_POSITIONS[] = {0, 20, 40, 60};    // Base servo positions
 const int SERVO2_POSITIONS[] = {40, 85, 130, 175}; // Arm servo positions
 
-// ==================== GLOBAL OBJECTS ====================
+// Objects
 LiquidCrystal_I2C lcd(0x27, 16, 2);
-Servo servoBase;
-Servo servoArm;
-NewPing sonar(triggerPin, echoPin, MAX_DISTANCE);
+Servo servodown;
+Servo servoup;
+NewPing sonar(triggerPin, echoPin, MAX_DISTANCE); // NewPing instance
 
-// ==================== GLOBAL VARIABLES ====================
+// Global variables for dynamic AP and OTA names
 char ssid[32];
 char ota_hostname[32];
 uint8_t robot_number = 0;
+
+// FreeRTOS task handle for OTA
 TaskHandle_t otaTaskHandle = NULL;
 
 // Q-Learning matrices
@@ -61,26 +63,47 @@ float previousDistance = 0;
 int successfulMoves = 0;
 float totalReward = 0;
 
-// ==================== EEPROM FUNCTIONS ====================
-void saveRobotNumber(uint8_t number) {
+void saveRobotNumber(uint8_t number)
+{
     EEPROM.write(ROBOT_NUM_ADDR, number);
     EEPROM.commit();
     Serial.print("Saved robot number: ");
     Serial.println(number);
 }
 
-uint8_t readRobotNumber() {
+uint8_t readRobotNumber()
+{
     uint8_t number = EEPROM.read(ROBOT_NUM_ADDR);
-    if (number < 1 || number > 8) {
-        Serial.println("Invalid robot number. Setting to 1.");
-        number = 1;
-        saveRobotNumber(number);
+    if (number < 1 || number > 8)
+    {
+        Serial.println("Invalid or uninitialized robot number. Please set number (1-8).");
+        lcd.clear();
+        lcd.print("Set Robot Num: 1-8");
+        while (!Serial.available())
+        {
+            delay(100); // Wait for Serial input
+        }
+        number = Serial.parseInt();
+        if (number >= 1 && number <= 8)
+        {
+            saveRobotNumber(number);
+            lcd.clear();
+            lcd.print("Robot Num Set: ");
+            lcd.print(number);
+            delay(2000);
+        }
+        else
+        {
+            Serial.println("Invalid input. Defaulting to robot number 1.");
+            number = 1;
+            saveRobotNumber(number);
+        }
     }
     return number;
 }
 
-// ==================== NETWORK SETUP ====================
-void setup_ap() {
+void setup_ap()
+{
     WiFi.mode(WIFI_AP);
     WiFi.softAP(ssid, ap_password);
     Serial.println("AP Started");
@@ -90,80 +113,127 @@ void setup_ap() {
     Serial.println(WiFi.softAPIP());
 }
 
-void setup_ota() {
+void setup_ota()
+{
     ArduinoOTA.setHostname(ota_hostname);
-    ArduinoOTA.onStart([]() {
+    // ArduinoOTA.setPassword("admin"); // Optional: Set OTA password
+    ArduinoOTA.onStart([]()
+                       {
         Serial.println("OTA Start");
         lcd.clear();
-        lcd.print("OTA Update Start");
-    });
-    ArduinoOTA.onEnd([]() {
+        lcd.print("OTA Update Start"); });
+    ArduinoOTA.onEnd([]()
+                     {
         Serial.println("\nOTA End");
         lcd.clear();
-        lcd.print("OTA Update Done");
-    });
-    ArduinoOTA.onProgress([](unsigned int progress, unsigned int total) {
+        lcd.print("OTA Update Done"); });
+    ArduinoOTA.onProgress([](unsigned int progress, unsigned int total)
+                          {
         Serial.printf("Progress: %u%%\r", (progress / (total / 100)));
+        lcd.clear();
+        lcd.print("OTA Progress: ");
         lcd.setCursor(0, 1);
-        lcd.print("Progress: ");
         lcd.print((progress / (total / 100)));
-        lcd.print("%");
-    });
+        lcd.print("%"); });
+    ArduinoOTA.onError([](ota_error_t error)
+                       {
+        Serial.printf("Error[%u]: ", error);
+        lcd.clear();
+        lcd.print("OTA Error");
+        if (error == OTA_AUTH_ERROR) Serial.println("Auth Failed");
+        else if (error == OTA_CONNECT_ERROR) Serial.println("Connect Failed");
+        else if (error == OTA_RECEIVE_ERROR) Serial.println("Receive Failed");
+        else if (error == OTA_END_ERROR) Serial.println("End Failed"); });
     ArduinoOTA.begin();
     Serial.println("OTA Ready");
+    Serial.print("OTA Hostname: ");
+    Serial.println(ota_hostname);
 }
 
-void otaTask(void *parameter) {
-    for (;;) {
-        ArduinoOTA.handle();
-        vTaskDelay(10 / portTICK_PERIOD_MS);
+// OTA task to run asynchronously
+void otaTask(void *parameter)
+{
+    for (;;)
+    {
+        ArduinoOTA.handle();                 // Handle OTA updates
+        vTaskDelay(10 / portTICK_PERIOD_MS); // Yield for 10ms
     }
 }
 
-// ==================== SENSOR FUNCTIONS ====================
-float getDistance() {
-    delay(50);  // Small delay for sensor stability
-    unsigned int uS = sonar.ping();
-    float distance = uS / US_ROUNDTRIP_CM;
-    
-    if (distance == 0 || distance > MAX_DISTANCE) {
-        return previousDistance;  // Return last valid reading
+float getDistance()
+{
+    float distance = sonar.ping_cm(); // Get distance in cm
+    if (distance == 0)
+    {
+        Serial.println("Warning: No echo received from SRF module.");
+        return -1;
     }
-    
+    Serial.print("Distance: ");
+    Serial.print(distance);
+    Serial.println(" cm");
     return distance;
 }
 
-// ==================== SERVO CONTROL ====================
-void moveServoSmooth(Servo &servo, int from, int to, int stepDelay = 10) {
-    if (from < to) {
-        for (int angle = from; angle <= to; angle += 2) {
-            servo.write(angle);
+void healthCheck()
+{
+    // 1. Print Health Check on LCD
+    lcd.clear();
+    lcd.print("Health Check Start");
+    delay(1000);
+
+    // 2. Get distance and print it
+    float distance = getDistance();
+    lcd.clear();
+    if (distance < 0)
+    {
+        lcd.print("SRF Error!");
+    }
+    else
+    {
+        lcd.print("Dist: ");
+        lcd.print(distance);
+        lcd.print(" cm");
+    }
+    delay(500);
+
+    servodown.write(90);
+    servoup.write(90);
+    delay(1000);
+    // 3. Move servos back to initial position
+    servodown.write(0);
+    servoup.write(180);
+    lcd.clear();
+    lcd.print("Servos Reset");
+    delay(1000);
+
+    // 4. Print completion message
+    lcd.clear();
+    lcd.print("Health Check Done");
+    delay(1500);
+    lcd.clear();
+}
+
+void moveServoSmooth(Servo &servo, int from, int to, int stepDelay = 10)
+{
+    if (from < to)
+    {
+        for (int a = from; a <= to; a += 2)
+        {
+            servo.write(a);
             delay(stepDelay);
         }
-    } else {
-        for (int angle = from; angle >= to; angle -= 2) {
-            servo.write(angle);
+    }
+    else
+    {
+        for (int a = from; a >= to; a -= 2)
+        {
+            servo.write(a);
             delay(stepDelay);
         }
     }
 }
 
-void moveToState(int state) {
-    int s1_idx = state / 4;  // Servo 1 position index
-    int s2_idx = state % 4;  // Servo 2 position index
-    
-    int targetAngle1 = SERVO1_POSITIONS[s1_idx];
-    int targetAngle2 = SERVO2_POSITIONS[s2_idx];
-    
-    moveServoSmooth(servoBase, servo1Angle, targetAngle1, 5);
-    moveServoSmooth(servoArm, servo2Angle, targetAngle2, 5);
-    
-    servo1Angle = targetAngle1;
-    servo2Angle = targetAngle2;
-    currentState = state;
-}
-
-// ==================== Q-LEARNING FUNCTIONS ====================
+// Q-Learning helper functions
 void initializeQLearning() {
     // Initialize Q-table with zeros
     for (int i = 0; i < STATES; i++) {
@@ -193,6 +263,21 @@ void initializeQLearning() {
     
     // Set goal state reward
     R[15][2] = 100;  // Goal state (lowest position)
+}
+
+void moveToState(int state) {
+    int s1_idx = state / 4;  // Servo 1 position index
+    int s2_idx = state % 4;  // Servo 2 position index
+    
+    int targetAngle1 = SERVO1_POSITIONS[s1_idx];
+    int targetAngle2 = SERVO2_POSITIONS[s2_idx];
+    
+    moveServoSmooth(servodown, servo1Angle, targetAngle1, 5);
+    moveServoSmooth(servoup, servo2Angle, targetAngle2, 5);
+    
+    servo1Angle = targetAngle1;
+    servo2Angle = targetAngle2;
+    currentState = state;
 }
 
 int selectAction(int state, float epsilon) {
@@ -259,8 +344,9 @@ float getMaxQ(int state) {
     return maxQ;
 }
 
-// ==================== TRAINING FUNCTION ====================
-void doTraining() {
+void doTraining()
+{
+    // TODO: Add your training logic here
     lcd.clear();
     lcd.print("Training Start");
     lcd.setCursor(0, 1);
@@ -348,19 +434,6 @@ void doTraining() {
     Serial.print("Average reward per episode: ");
     Serial.println(totalReward / EPISODES);
     
-    // Display Q-table
-    Serial.println("\nFinal Q-Table:");
-    for (int s = 0; s < STATES; s++) {
-        Serial.print("State ");
-        Serial.print(s);
-        Serial.print(": ");
-        for (int a = 0; a < ACTIONS; a++) {
-            Serial.print(Q[s][a], 2);
-            Serial.print(" ");
-        }
-        Serial.println();
-    }
-    
     lcd.clear();
     lcd.print("Training Done!");
     lcd.setCursor(0, 1);
@@ -369,8 +442,9 @@ void doTraining() {
     delay(2000);
 }
 
-// ==================== LEARNED BEHAVIOR ====================
-void doLearnedBehavior() {
+void doLearnedBehavior()
+{
+    // TODO: Add your learned behavior logic here
     lcd.clear();
     lcd.print("Learned Behavior");
     Serial.println("\n=== Executing Learned Behavior ===");
@@ -449,65 +523,34 @@ void doLearnedBehavior() {
     delay(3000);
 }
 
-// ==================== HEALTH CHECK ====================
-void healthCheck() {
-    lcd.clear();
-    lcd.print("Health Check");
-    delay(1000);
-    
-    // Test distance sensor
-    float distance = getDistance();
-    lcd.clear();
-    lcd.print("Dist: ");
-    lcd.print(distance);
-    lcd.print(" cm");
-    delay(1000);
-    
-    // Test servos
-    lcd.clear();
-    lcd.print("Testing Servos");
-    
-    // Test base servo
-    servoBase.write(0);
-    delay(500);
-    servoBase.write(90);
-    delay(500);
-    servoBase.write(0);
-    delay(500);
-    
-    // Test arm servo
-    servoArm.write(40);
-    delay(500);
-    servoArm.write(130);
-    delay(500);
-    servoArm.write(40);
-    delay(500);
-    
-    lcd.clear();
-    lcd.print("Health Check OK");
-    delay(1500);
-}
+void setup()
+{
+    Serial.begin(9600);
+    delay(1000); // Give Serial Monitor time to connect
 
-// ==================== MAIN SETUP ====================
-void setup() {
-    Serial.begin(115200);
-    delay(1000);
-    
     // Initialize EEPROM
     EEPROM.begin(EEPROM_SIZE);
+
+    // Read or set robot number
     robot_number = readRobotNumber();
     snprintf(ssid, sizeof(ssid), "%s%d", base_ssid, robot_number);
     snprintf(ota_hostname, sizeof(ota_hostname), "%s%d", base_ota_hostname, robot_number);
-    
-    // Initialize Network
+
+    // Initialize AP and OTA
     setup_ap();
     setup_ota();
-    
+
     // Start OTA task
     xTaskCreatePinnedToCore(
-        otaTask, "OTATask", 4096, NULL, 1, &otaTaskHandle, 1
+        otaTask,        // Task function
+        "OTATask",      // Task name
+        4096,           // Stack size
+        NULL,           // Task parameters
+        1,              // Priority
+        &otaTaskHandle, // Task handle
+        1               // Run on core 1
     );
-    
+
     // Initialize LCD
     lcd.init();
     lcd.backlight();
@@ -515,44 +558,51 @@ void setup() {
     lcd.print("RL Robot ");
     lcd.print(robot_number);
     lcd.setCursor(0, 1);
-    lcd.print("Initializing...");
+    lcd.print("Setup");
     delay(1000);
-    
-    // Initialize Servos
-    servoBase.attach(control_servo_down, 600, 2400);
-    servoArm.attach(control_servo_up, 600, 2400);
-    
-    // Set initial position
-    servoBase.write(0);
-    servoArm.write(40);
+
+    // Attach servos with min/max pulse widths
+    servodown.attach(control_servo_down, 600, 2400);
+    servoup.attach(control_servo_up, 600, 2400);
+
+    // Set servos to initial position
+    servodown.write(0);
+    servoup.write(180);
     servo1Angle = 0;
-    servo2Angle = 40;
-    delay(1000);
-    
+    servo2Angle = 180;
+
     // Initialize Q-Learning
     initializeQLearning();
     
-    // Perform health check
-    healthCheck();
-    
     // Get initial distance
     previousDistance = getDistance();
-    Serial.print("Initial distance: ");
-    Serial.print(previousDistance);
-    Serial.println(" cm");
-    
+    if (previousDistance > 0) {
+        Serial.print("Initial distance: ");
+        Serial.print(previousDistance);
+        Serial.println(" cm");
+    }
+
+    // Notify setup completion
     lcd.clear();
-    lcd.print("Setup Complete");
+    lcd.print("Setup Completed");
     delay(2000);
+    healthCheck();
 }
 
-// ==================== MAIN LOOP ====================
-void loop() {
+void loop()
+{
     static bool trainingDone = false;
     static bool behaviorDone = false;
     static unsigned long lastActionTime = 0;
     
     if (!trainingDone) {
+        lcd.clear();
+        lcd.print("Robot ");
+        lcd.print(robot_number);
+        lcd.setCursor(0, 1);
+        lcd.print("Main Loop");
+        delay(1000); // Reduced delay to minimize blocking
+        
         lcd.clear();
         lcd.print("Press to Train");
         lcd.setCursor(0, 1);
@@ -589,6 +639,13 @@ void loop() {
             lcd.clear();
             lcd.print("Robot ");
             lcd.print(robot_number);
+            lcd.setCursor(0, 1);
+            lcd.print("Main Loop");
+            delay(1000); // Reduced delay to minimize blocking
+            
+            lcd.clear();
+            lcd.print("Robot ");
+            lcd.print(robot_number);
             lcd.print(" Ready");
             lcd.setCursor(0, 1);
             lcd.print("Learned: ");
@@ -613,6 +670,7 @@ void loop() {
             }
         }
     }
+    // TODO: Implement your main loop logic here
     
     delay(100);
 }
